@@ -8,24 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 # 30 files and load them all, then isolate each plot, then store them all in a giant array
 totalFiles = 30
 
-"""need to create buttons to annotate builds
-good, bad, unfinished
-theme
-appropriate or inappropriate
-
-
-
-create a slider to rotate the plot around
-
-
-store in an array, then find adjust all plots so they're the same size
-
-
-save into h5 file
-
-array, classification, theme, extra comments"""
-
-
 def readFile(number):
     out = []
 
@@ -171,7 +153,7 @@ path = 'Build_Battle_Data.h5'
 # Save the data
 with h5py.File(path, 'w') as f:
     f.create_dataset('image', data=finalPlots)
-    f.create_dataset('label', data=themes)
+    f.create_dataset('theme', data=themes)
 
 f.close()
 
