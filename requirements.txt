@@ -1,3 +1,4 @@
 nbt
 numpy
 matplotlib
+h5py

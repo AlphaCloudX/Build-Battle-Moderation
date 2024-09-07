@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # 30 files and load them all, then isolate each plot, then store them all in a giant array
 
-nbtfile = nbt.NBTFile("worlds/20.schematic", 'rb')
+nbtfile = nbt.NBTFile("worlds/1.schematic", 'rb')
 
 # X, Y, Z dimensions
 width = nbtfile['Width'].value
@@ -79,7 +79,24 @@ for i in range(0, totalPlots):  # step by 27 to extract each plot
         bottom = ((j + 1) * plotSize) + (j * offset)
 
         plot = trimmedWorld[left:right, top:bottom]
-        plots.append(plot)
+
+        # Check to see if the plot is empty
+        if np.unique(plot[:, :, 1:])[0].data != 0:
+            plots.append(plot)
+
+# Step 1: Find the maximum dimensions
+# max_shape = np.max([arr.shape for arr in plots], axis=0)
+#
+# # Step 2: Define a function to pad each array to match the maximum dimensions
+# def pad_array(arr, max_shape):
+#     pad_width = [(0, max_shape[i] - arr.shape[i]) for i in range(len(arr.shape))]
+#     return np.pad(arr, pad_width, mode='constant', constant_values=0)
+#
+# # Step 3: Apply padding to all arrays
+# padded_arrays = [pad_array(arr, max_shape) for arr in plots]
+#
+# # Now all arrays are padded to the same shape
+# print([arr.shape for arr in padded_arrays])  # Check the new shapes
 
 # Print total plots to verify
 print(len(plots))
@@ -107,6 +124,9 @@ for index in range(len(plots)):
 
     # Show the plot
     plt.show()
+
+
+
 
 # print(masked_data.shape)
 # print(masked_data)

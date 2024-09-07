@@ -1,5 +1,5 @@
 import csv
-
+import h5py
 from nbt import nbt
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +7,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # 30 files and load them all, then isolate each plot, then store them all in a giant array
 totalFiles = 30
-
 
 """need to create buttons to annotate builds
 good, bad, unfinished
@@ -27,7 +26,6 @@ save into h5 file
 array, classification, theme, extra comments"""
 
 
-
 def readFile(number):
     out = []
 
@@ -44,12 +42,13 @@ csvFiles = readFile(f"worlds/replays.csv")
 
 # Initialize an empty list to store plots
 plots = []
+themes = []
 
 for k in range(1, totalFiles + 1):
     print(f"Reading {k}")
     nbtfile = nbt.NBTFile(f"worlds/{k}.schematic", 'rb')
 
-    theme = csvFiles[k-1][1]
+    theme = csvFiles[k - 1][1]
 
     # X, Y, Z dimensions
     width = nbtfile['Width'].value
@@ -63,14 +62,6 @@ for k in range(1, totalFiles + 1):
     masked_data = np.ma.masked_where(worldArray == 0, worldArray)
 
     print(masked_data.shape)
-
-    # Find where the floor begins
-    layerStart = 0
-    for i in range(masked_data.shape[-1]):
-        if np.unique(masked_data[:, :, i]).tolist()[0] == 159:
-            layerStart = i + 1
-            break
-
     # For Solo
     # 0-4     5-31   32-36
     # Border  plot   Border
@@ -90,7 +81,7 @@ for k in range(1, totalFiles + 1):
         border = 5
         print("Detected Solo Mode")
 
-    trimmedWorld = masked_data[border:-border, border:-border, layerStart:]
+    trimmedWorld = masked_data[border:-border, border:-border, :]
 
     # Account for the strange border between plots
     offset = ((border * 2) - 1)
@@ -112,7 +103,7 @@ for k in range(1, totalFiles + 1):
     # Loop to extract plots from the trimmed world
     for i in range(0, totalPlots):  # step by 27 to extract each plot
         for j in range(0, totalPlots):
-            # Extracting a 27x27 plot but preventing hitting the 9/11 long borders
+            # Extracting a plot but preventing hitting the odd sized borders
             left = (i * plotSize) + (i * offset)
             right = ((i + 1) * plotSize) + (i * offset)
 
@@ -121,83 +112,92 @@ for k in range(1, totalFiles + 1):
 
             plot = trimmedWorld[left:right, top:bottom]
 
+            # Find where the floor begins
+            floorStart = 0
+            for l in range(masked_data.shape[-1]):
+                if np.unique(plot[:, :, l]).tolist()[0] == 159:
+                    floorStart = l + 1
+                    break
+
             # Check to see if the plot is empty
-            if np.unique(plot[:, :, 1:])[0].data != 0:
-                plots.append(plot)
+            if np.unique(plot[:, :, floorStart + 1:])[0].data != 0:
 
+                # Remove Extra Height now that the plot is valid
+                heightStart = 0
+                for l in range(masked_data.shape[-1] - 1, floorStart, -1):
+                    if np.unique(plot[:, :, l]).tolist()[0] is not None:
+                        heightStart = l + 1
+                        break
 
+                print(f"{floorStart} -> {heightStart}")
 
+                # Save the theme and plot
+                plots.append(plot[:, :, floorStart + 1:heightStart])
+                themes.append(theme)
 
-# Print total plots to verify
-print(len(plots))
+# Step 1: Find the maximum dimensions
+maxL = 0
+maxW = 0
+maxH = 0
 
-index = 0
+for i in plots:
+    if i.shape[0] > maxL:
+        maxL = i.shape[0]
+    if i.shape[1] > maxW:
+        maxW = i.shape[1]
+    if i.shape[2] > maxH:
+        maxH = i.shape[2]
 
-# for index in range(36):
-print(index)
-for index in range(len(plots)):
-    # Create a figure and 3D axis
-    ax = plt.figure().add_subplot(projection='3d')
+print("Max dims:")
+print(maxL, maxW, maxH)
 
-    # Create a voxel grid where blocks are present
-    ax.voxels(plots[index], facecolors='blue', edgecolor='none')  # Remove edgecolor for faster rendering
+# Pad The Np Array with 0's so they're all the same size
+finalPlots = []
 
-    # Set labels
-    ax.set_xlabel('X')
-    ax.set_ylabel('Z')
-    ax.set_zlabel('Y')
+# Pad with 0's
+for i in range(len(plots)):
+    padL = (0, maxL - plots[i].shape[0])
+    padW = (0, maxW - plots[i].shape[1])
+    padH = (0, maxH - plots[i].shape[2])
 
-    # Set aspect ratio to be equal (optional, depending on your use case)
-    ax.set_box_aspect([plots[index].shape[0], plots[index].shape[1], plots[index].shape[2]])
+    padShape = [padL, padW, padH]
 
-    ax.view_init(elev=30, azim=-65)
+    paddedPlot = np.pad(plots[i], padShape, mode='constant', constant_values=0)
+    finalPlots.append(paddedPlot)
 
-    # Show the plot
-    plt.show()
+# Path to save the HDF5 file
+path = 'Build_Battle_Data.h5'
 
-# print(masked_data.shape)
-# print(masked_data)
+# Save the data
+with h5py.File(path, 'w') as f:
+    f.create_dataset('image', data=finalPlots)
+    f.create_dataset('label', data=themes)
+
+f.close()
+
 #
-# fig, ax = plt.subplots()
-# im = ax.imshow(masked_data)
-# plt.show()
-
-
-# # Create a figure and 3D axis
-# ax = plt.figure().add_subplot(projection='3d')
+# index = 0
 #
-# # Create a voxel grid where blocks are present
-# ax.voxels(masked_data, facecolors='blue', edgecolor='none')  # Remove edgecolor for faster rendering
+# # for index in range(36):
+# print(index)
+# for index in range(len(finalPlots)):
+#     print(np.unique(finalPlots[index]))
 #
-# # Set labels
-# ax.set_xlabel('X')
-# ax.set_ylabel('Z')
-# ax.set_zlabel('Y')
+#     # Create a figure and 3D axis
+#     ax = plt.figure().add_subplot(projection='3d')
 #
-# # Set aspect ratio to be equal (optional, depending on your use case)
-# ax.set_box_aspect([masked_data.shape[0], masked_data.shape[1], masked_data.shape[2]])
+#     # Create a voxel grid where blocks are present
+#     ax.voxels(finalPlots[index], facecolors='blue', edgecolor='none')  # Remove edgecolor for faster rendering
 #
-# # Show the plot
-# plt.show()
-
-
-# # Downsample the array (Optional: Use only if the array is too large)
-# downsample_factor = 6
-# masked_data = masked_data[::downsample_factor, ::downsample_factor, ::downsample_factor]
+#     # Set labels
+#     ax.set_xlabel('X')
+#     ax.set_ylabel('Z')
+#     ax.set_zlabel('Y')
 #
-# # Create a figure and 3D axis
-# ax = plt.figure().add_subplot(projection='3d')
+#     # Set aspect ratio to be equal (optional, depending on your use case)
+#     ax.set_box_aspect([finalPlots[index].shape[0], finalPlots[index].shape[1], finalPlots[index].shape[2]])
 #
-# # Create a voxel grid where blocks are present
-# ax.voxels(masked_data, facecolors='blue', edgecolor='none')  # Remove edgecolor for faster rendering
+#     ax.view_init(elev=30, azim=-65)
 #
-# # Set labels
-# ax.set_xlabel('X')
-# ax.set_ylabel('Z')
-# ax.set_zlabel('Y')
-#
-# # Set aspect ratio to be equal (optional, depending on your use case)
-# ax.set_box_aspect([masked_data.shape[0], masked_data.shape[1], masked_data.shape[2]])
-#
-# # Show the plot
-# plt.show()
+#     # Show the plot
+#     plt.show()
