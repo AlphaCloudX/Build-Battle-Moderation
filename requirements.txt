@@ -2,3 +2,5 @@ nbt
 numpy
 matplotlib
 h5py
+tensorflow
+tensorflow-directml-plugin
