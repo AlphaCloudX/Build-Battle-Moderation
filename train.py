@@ -1,4 +1,5 @@
 import h5py
+import numpy as np
 
 path = 'Build_Battle_Data.h5'
 with h5py.File(path, 'r') as f:
@@ -24,7 +25,11 @@ for i in range(len(finalPlots)):
         inappropriateDataPlot.append(finalPlots[i])
         inappropriateDataTheme.append(themes[i])
 
+appropriateDataLabels = np.ones(len(appropriateDataPlot))
+inappropriateDataLabels = np.zeros(len(inappropriateDataPlot))
 
-print(len(appropriateDataPlot))
-print(len(inappropriateDataPlot))
-
+print(appropriateDataPlot)
+print(appropriateDataLabels)
+#
+# print(inappropriateDataPlot)
+# print(inappropriateDataLabels)
